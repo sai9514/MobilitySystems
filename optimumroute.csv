@@ -1,0 +1,15 @@
+"r('S Olympiastadion (Berlin)', 'S Westkreuz (Berlin)')",0.0
+"r('S Olympiastadion (Berlin)', 'es_0')",0.0
+"r('S Westkreuz (Berlin)', 'S Charlottenburg Bhf (Berlin)')",0.0
+"r('S Westkreuz (Berlin)', 'dest')",0.0
+"r('S Westkreuz (Berlin)', 'es_0')",0.0
+"r('S Charlottenburg Bhf (Berlin)', 'dest')",0.0
+"r('S Charlottenburg Bhf (Berlin)', 'es_0')",0.0
+"r('orig', 'S Westkreuz (Berlin)')",0.0
+"r('orig', 'S Charlottenburg Bhf (Berlin)')",0.0
+"r('orig', 'es_0')",1.0
+"r('es_0', 'S Olympiastadion (Berlin)')",0.0
+"r('es_0', 'S Westkreuz (Berlin)')",0.0
+"r('es_0', 'S Charlottenburg Bhf (Berlin)')",0.0
+"r('es_0', 'dest')",1.0
+publicTransUse,0.0

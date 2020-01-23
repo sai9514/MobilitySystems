@@ -17,9 +17,7 @@ def getTimeFromStr(time_str):
         new_str = int(time_str[:2]) - 24
         new_time_str = str(new_str) + ":" + time_str.split(':', 1)[1]
         time_str = "2000:01:01:" + new_time_str
-        print(time_str)
     time_str = "2000:01:01:" + time_str
-    print(time_str)
     trip_time = datetime.strptime(time_str, '%Y:%m:%d:%H:%M:%S')
     return trip_time
 
