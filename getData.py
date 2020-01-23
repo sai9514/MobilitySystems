@@ -9,13 +9,18 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import random
 
+dir_db = "C:\\Users\\jo_ma\\PycharmProjects\\Mobility\\gtfs_berlin.db"
+
 
 def getTimeFromStr(time_str):
     if int(time_str.split(':')[0]) >= 24:
         new_str = int(time_str[:2]) - 24
         new_time_str = str(new_str) + ":" + time_str.split(':', 1)[1]
-        time_str = new_time_str
-    trip_time = datetime.strptime(time_str, '%H:%M:%S')
+        time_str = "2000:01:01:" + new_time_str
+        print(time_str)
+    time_str = "2000:01:01:" + time_str
+    print(time_str)
+    trip_time = datetime.strptime(time_str, '%Y:%m:%d:%H:%M:%S')
     return trip_time
 
 
@@ -40,7 +45,7 @@ def getTripsFromStop(stop_id, stop_time):
 
 
 def getClosestStops(lat, lon, dist):
-    conn = sqlite3.connect('gtfs_berlin.db')
+    conn = sqlite3.connect(dir_db)
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM stops")
     rows = cursor.fetchall()
@@ -55,7 +60,7 @@ def getClosestStops(lat, lon, dist):
 
 
 def getNWFromAgencyNodeAttrs(agency):
-    conn = sqlite3.connect('gtfs_berlin.db')
+    conn = sqlite3.connect(dir_db)
     cursor = conn.cursor()
     cursor.execute(
         "SELECT t1.trip_id FROM trips as t1, routes as r1  WHERE r1.agency_id=1 AND r1.route_id = t1.route_id limit 500")
@@ -102,10 +107,11 @@ def getNWFromAgencyNodeAttrs(agency):
 
 
 def getNWFromAgencyEdgeAttrs(agency, orig, dest):
-    conn = sqlite3.connect('gtfs_berlin.db')
+    conn = sqlite3.connect(dir_db)
     cursor = conn.cursor()
     cursor.execute("SELECT t1.trip_id FROM trips as t1, routes as r1  WHERE r1.agency_id=? AND r1.route_id = "
-                   "t1.route_id limit 10", (agency,))
+                  "t1.route_id limit 10", (agency,))
+
     trip_rows = cursor.fetchall()
     G = nx.MultiDiGraph()
     node_attrs = {}
@@ -125,7 +131,8 @@ def getNWFromAgencyEdgeAttrs(agency, orig, dest):
             if not G.has_edge(node_rows[i - 1][0], node_rows[i][0], key=node_rows[i - 1][1]):
                 arr_time = getTimeFromStr(node_rows[i][2])
                 dep_time = getTimeFromStr(node_rows[i - 1][3])
-
+                print(arr_time.timetuple())
+                print(dep_time.timetuple())
                 diff_minutes = time.mktime(arr_time.timetuple()) - time.mktime(dep_time.timetuple())
                 time_taken = {node_rows[i][1]: diff_minutes}
                 G.add_edge(node_rows[i - 1][0], node_rows[i][0], key=node_rows[i - 1][1], attrs=time_taken)
@@ -206,5 +213,5 @@ def getNWFromAgencyEdgeAttrs(agency, orig, dest):
     # print(edge_attrs.items())
 
     nx.draw_networkx(G, with_labels=True, node_size=10, font_size=2, arrowsize=4)
-    plt.savefig("./OutputGraphs/sample1.pdf", bbox_inches='tight', format='pdf', dpi=1200)
+    # plt.savefig("./OutputGraphs/sample1.pdf", bbox_inches='tight', format='pdf', dpi=1200)
     return G
