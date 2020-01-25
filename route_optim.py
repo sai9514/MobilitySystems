@@ -1,34 +1,30 @@
 import csv
-
-from mobility import getData
+from MobilitySystems import getData
 from gurobipy import *
 import networkx as nx
 
 m = Model('RouteOptimization')
 
-init_time = "12:34:55"
-stop_id = "060024101336"
-limit_dist = 0.4
 stops = []
 agency = 1
 
+orig = (52.5219618, 13.4057959)
+dest = (52.5086121, 13.4010941)
 
+valueTime = 0.00322222222
+publicTransFare = 3
+EscooterCost = 0.03
+ulEscoot = 1
 
+graph = getData.getNWFromAgencyEdgeAttrs(agency, orig, dest)
 
-orig = (52.5176000, 13.3938110)
-dest = (52.5018090, 13.4538480)
+if graph is True:
+    G = nx.read_gpickle("/home/sai/PycharmProjects/BerlinRoutes/OutputGraphs/networkBerlin.gpickle")
 
-valueTime = 100
-f = 1
-c = 1
-ulEscoot = 500
-
-G = getData.getNWFromAgencyEdgeAttrs(agency, orig, dest)
 edgeList = G.edges.data('attrs')
 
 nodeList = list(G.nodes())
 print(nodeList)
-print(edgeList)
 
 edgeAttrs = {}
 publicEdgeAttrs = {}
@@ -64,8 +60,7 @@ for edgeLink in edgeAttrs:
 x = m.addVar(vtype=GRB.BINARY, name='publicTransUse')
 
 m.update()
-print(edgeIn)
-print(edgeOut)
+
 
 # adding constraints
 for node in nodeList:
@@ -95,14 +90,11 @@ eScooterTimeCost = {}
 
 for edgeAttr in edgeAttrs:
     monValTime[edgeAttr] = int(list(edgeAttrs[edgeAttr].values())[0]) * valueTime
-    print("monValTime: ", monValTime[edgeAttr])
-
     # include unlock costs here
-    eScooterTimeCost[edgeAttr] = ulEscoot + (int(list(edgeAttrs[edgeAttr].values())[0]) * c)
-    print("eScooterTimeCost: ", eScooterTimeCost[edgeAttr])
+    eScooterTimeCost[edgeAttr] = ulEscoot + (int(list(edgeAttrs[edgeAttr].values())[0]) * EscooterCost)
 
 obj = quicksum(r[edgeAttr] * monValTime[edgeAttr] for edgeAttr in edgeAttrs) + quicksum(
-    r[edgeAttr] * (eScooterTimeCost[edgeAttr]) for edgeAttr in scootEdgeAttrs) + x * f
+    r[edgeAttr] * (eScooterTimeCost[edgeAttr]) for edgeAttr in scootEdgeAttrs) + x * publicTransFare
 
 # set Objective
 m.setObjective(obj, GRB.MINIMIZE)
@@ -111,12 +103,13 @@ m.optimize()
 var_values = {}
 
 for v in m.getVars():
-    var_values[(str(v.varName))] = v.x
+    var_values[(str.encode(v.varName))] = v.x
 
 print(var_values.items())
 
 with open('optimumroute.csv', 'w') as csv_file:
     writer = csv.writer(csv_file)
+    writer.writerow("Variables", "Value")
     for key, value in var_values.items():
         writer.writerow([key, value])
 
