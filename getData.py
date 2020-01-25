@@ -22,6 +22,7 @@ def getNWFromAgencyEdgeAttrs(agencies):
         trip_rows = cursor.fetchall()
         # go through each trip and get the details of stops in that trip
         for trip_row in trip_rows:
+            print("agency is: ", agency, " trip is ", trip_row)
             cursor2 = conn.cursor()
             # getting the list of stops in a trip
             cursor2.execute(
@@ -54,8 +55,10 @@ def getNWFromAgencyEdgeAttrs(agencies):
     nodeDegrees = list(G.degree())
 
     # to get no. of e scooters based on no. of nodes always between 60% to 20 %
-    eScooterNo = int((0.2 + 0.45 * (2 ** (-0.01 * len(nodeDegrees)))) * len(nodeDegrees))
-    print(eScooterNo)
+    # 0.2 + 0.45×2^(-0.01×n×n)
+    eScooterNo = int(0.2 * len(nodeDegrees))
+    print("EScooter Nos: ", eScooterNo)
+
     # sorting the nodes based on highest degrees to place e scooters near them
     sortedNodes = sorted(nodeDegrees, key=itemgetter(1), reverse=True)
     print(sortedNodes)
@@ -69,15 +72,16 @@ def getNWFromAgencyEdgeAttrs(agencies):
                 random.choice(choiceSet) * float('0.0000300')),
                          float("{:6f}".format(float(node_attrs[sortedNodes[i][0]][1]))) + (
                                  random.choice(choiceSet) * float('0.0000300')))
-        print(eScooterCoord)
         extraCoords['es_' + str(i)] = eScooterCoord
         for item in node_attrs.items():
             d = geopy.distance.vincenty(eScooterCoord, item[1]).km
-            if d < 1:
+            if d < 0.5:
                 G.add_edge('es_' + str(i), item[0], key='scoot', attrs={"scoot": int(180 * d)})
                 G.add_edge(item[0], 'es_' + str(i), key='walk', attrs={"walk": int(720 * d)})
-            elif 1 <= d <= 5:
+            elif 0.5 <= d <= 5:
                 G.add_edge('es_' + str(i), item[0], key='scoot', attrs={"scoot": int(180 * d)})
+        print("EScooter Coord: ", eScooterCoord, " added!")
+        print(eScooterNo - i - 1, " EScooters left")
         i = i + 1
 
     node_attrs.update(extraCoords)
