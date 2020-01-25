@@ -10,41 +10,43 @@ import random
 dir_db = '/home/sai/PycharmProjects/BerlinRoutes/gtfs_berlin.db'
 
 
-def getNWFromAgencyEdgeAttrs(agency):
+def getNWFromAgencyEdgeAttrs(agencies):
     conn = sqlite3.connect(dir_db)
-    cursor = conn.cursor()
-    cursor.execute("SELECT t1.trip_id FROM trips as t1, routes as r1  WHERE r1.agency_id=? AND r1.route_id = "
-                   "t1.route_id limit 500", (agency,))
-
-    trip_rows = cursor.fetchall()
     G = nx.MultiDiGraph()
     node_attrs = {}
-    # go through each trip and get the details of stops in that trip
-    for trip_row in trip_rows:
-        cursor2 = conn.cursor()
-        # getting the list of stops in a trip
-        cursor2.execute(
-            "select s2.stop_name, r1.route_short_name, s1.arrival_time, s1.departure_time, s2.stop_lat, s2.stop_lon "
-            "from stop_times as s1, stops as s2, routes as r1, trips as t1  where s1.trip_id=? AND s1.stop_id = "
-            "s2.stop_id AND s1.trip_id = t1.trip_id AND t1.route_id = r1.route_id", trip_row)
-        node_rows = cursor2.fetchall()
+    for agency in agencies:
+        cursor = conn.cursor()
+        cursor.execute("SELECT t1.trip_id FROM trips as t1, routes as r1  WHERE r1.agency_id=? AND r1.route_id = "
+                       "t1.route_id limit 100", (agency,))
 
-        i = 1
-        while i < len(node_rows):
-            # adding attributes to edges of the graph
-            if not G.has_edge(node_rows[i - 1][0], node_rows[i][0], key=node_rows[i - 1][1]):
-                arr_time = getTimeFromStr(node_rows[i][2])
-                dep_time = getTimeFromStr(node_rows[i - 1][3])
-                diff_minutes = time.mktime(arr_time.timetuple()) - time.mktime(dep_time.timetuple())
-                time_taken = {node_rows[i][1]: diff_minutes}
-                G.add_edge(node_rows[i - 1][0], node_rows[i][0], key=node_rows[i - 1][1], attrs=time_taken)
-            # adding coord as attributes to each node
-            if node_rows[i - 1][0] not in node_attrs:
-                node_attrs[node_rows[i - 1][0]] = (node_rows[i - 1][4], node_rows[i - 1][5])
-            if i == len(node_rows) - 1:
-                if node_rows[i][0] not in node_attrs:
-                    node_attrs[node_rows[i][0]] = (node_rows[i][4], node_rows[i][5])
-            i = i + 1
+        trip_rows = cursor.fetchall()
+        # go through each trip and get the details of stops in that trip
+        for trip_row in trip_rows:
+            cursor2 = conn.cursor()
+            # getting the list of stops in a trip
+            cursor2.execute(
+                    "select s2.stop_name, r1.route_short_name, s1.arrival_time, s1.departure_time, s2.stop_lat, s2.stop_lon from "
+                    "stop_times as s1, stops as s2, routes as r1, trips as t1  where s1.trip_id=? AND s1.stop_id = s2.stop_id AND "
+                    "s1.trip_id = t1.trip_id AND t1.route_id = r1.route_id", trip_row)
+            node_rows = cursor2.fetchall()
+
+            i = 1
+            while i < len(node_rows):
+                # adding attributes to edges of the graph
+                if not G.has_edge(node_rows[i - 1][0], node_rows[i][0], key=node_rows[i - 1][1]):
+                    arr_time = getTimeFromStr(node_rows[i][2])
+                    dep_time = getTimeFromStr(node_rows[i - 1][3])
+                    diff_minutes = time.mktime(arr_time.timetuple()) - time.mktime(dep_time.timetuple())
+                    time_taken = {node_rows[i][1]: diff_minutes}
+                    G.add_edge(node_rows[i - 1][0], node_rows[i][0], key=node_rows[i - 1][1], attrs=time_taken)
+                # adding coord as attributes to each node
+                if node_rows[i - 1][0] not in node_attrs:
+                    node_attrs[node_rows[i - 1][0]] = (node_rows[i - 1][4], node_rows[i - 1][5])
+                if i == len(node_rows) - 1:
+                    if node_rows[i][0] not in node_attrs:
+                        node_attrs[node_rows[i][0]] = (node_rows[i][4], node_rows[i][5])
+                i = i + 1
+
     # we have added all the public transport stops in the above for loop
 
     print("No. of edges with only public transport: ", nx.number_of_edges(G))
@@ -53,7 +55,7 @@ def getNWFromAgencyEdgeAttrs(agency):
 
     # to get no. of e scooters based on no. of nodes always between 60% to 20 %
     eScooterNo = int((0.2 + 0.45 * (2 ** (-0.01 * len(nodeDegrees)))) * len(nodeDegrees))
-
+    print(eScooterNo)
     # sorting the nodes based on highest degrees to place e scooters near them
     sortedNodes = sorted(nodeDegrees, key=itemgetter(1), reverse=True)
     print(sortedNodes)
@@ -88,7 +90,6 @@ def getNWFromAgencyEdgeAttrs(agency):
     # print(locale_attrs.items())
     # edge_attrs = nx.get_edge_attributes(G, 'attrs')
     # print(edge_attrs.items())
-
     nx.draw_networkx(G, with_labels=True, node_size=10, font_size=2, arrowsize=4)
     nx.write_gpickle(G, "/home/sai/PycharmProjects/BerlinRoutes/OutputGraphs/networkBerlin.gpickle")
     plt.savefig("/home/sai/PycharmProjects/BerlinRoutes/OutputGraphs/publicTransport.pdf", bbox_inches='tight', format='pdf', dpi=1200)

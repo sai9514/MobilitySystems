@@ -47,7 +47,7 @@ print(user_weekly_trips.items())
 # if graph is True:
 #     G = nx.read_gpickle("/home/sai/PycharmProjects/BerlinRoutes/OutputGraphs/networkBerlin.gpickle")
 
-G = nx.read_gpickle("/home/sai/PycharmProjects/BerlinRoutes/OutputGraphs/networkBerlin.gpickle")
+G = nx.read_gpickle("/home/sai/PycharmProjects/BerlinRoutes/OutputGraphs/networkBerlin1.gpickle")
 
 for week in user_weekly_trips:  # each key is each week - includes all the trips in the week
     trips = user_weekly_trips[week]  # includes all the trips in this week
@@ -90,11 +90,10 @@ for week in user_weekly_trips:  # each key is each week - includes all the trips
                     G.add_edge("orig", item[0], key='walk', attrs={"walk": int(720 * d1)})
                 if d2 < 5:
                     G.add_edge(item[0], "dest", key='scoot', attrs={"scoot": int(180 * d2)})
-
         print("No. of edges after orig, dest and e scooters: ", nx.number_of_edges(G))
-
         edgeList = G.edges.data('attrs')
         nodeList.append(list(G.nodes()))
+
         # creating dictionaries with full edges and only public transport edges for different constraints
         for eachEdge in edgeList:
             edgeAttrs[tripNum, (eachEdge[0], eachEdge[1])] = eachEdge[2]
@@ -138,6 +137,7 @@ for week in user_weekly_trips:  # each key is each week - includes all the trips
 
         tripObj.append(quicksum(r[edgeAttr] * monValTime[edgeAttr] for edgeAttr in tripEdgeAttrs.keys()) + quicksum(
             r[edgeAttr] * (eScooterUnlockCost[edgeAttr]) for edgeAttr in tripScooterEdgeAttrs.keys()))
+
         """
         # set Objective
         m.setObjective(tripObj, GRB.MINIMIZE)
