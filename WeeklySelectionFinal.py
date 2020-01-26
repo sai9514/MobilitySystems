@@ -5,14 +5,27 @@ import csv
 from MobilitySystems import getData
 import matplotlib.pyplot as plt
 
-# getting weekly user trips
-user_weekly_trips = getData.getUserWeeklyTripDetails()
-valueTime = 0.00322222222
+valueTime = 0.003231
 ulEscoot = 1
 eScooterLimit = 1200
-EScooterCost = 0.003
-WeeklyPackageCost = 34
+EScooterCost = 0.0033
+WeeklyPackageCost = 36
 
+directory = "/home/sai/PycharmProjects/BerlinRoutes/OutputsGurobi/Students/User1/"
+
+# getting weekly user trips
+user_weekly_trips = getData.getUserWeeklyTripDetails()
+
+
+tripForPrint = -1
+
+with open(directory + 'OptimumRouteWeekly.csv', 'w') as csv_file:
+    writer = csv.writer(csv_file)
+    writer.writerow(["week", "trip", "variables", "values"])
+
+with open(directory + 'ObjectiveValuesWeekly.csv', 'w') as csv_file:
+    writer = csv.writer(csv_file)
+    writer.writerow(["Week", "Objective", "Values"])
 
 for week in user_weekly_trips:
     trips = user_weekly_trips[week]  # includes all the trips for this week as an array
@@ -40,7 +53,7 @@ for week in user_weekly_trips:
         # plt.savefig("/home/sai/PycharmProjects/BerlinRoutes/OutputGraphs/sample_" + str(week) + "_" + str(tripNum) + ".pdf", bbox_inches='tight', format='pdf', dpi=1200)
 
         node_attrs = nx.get_node_attributes(G, name='locale')
-        print(*node_attrs)
+        #print(*node_attrs)
         print("No. of initial edges ", nx.number_of_edges(G))
 
         # adding links between orig or dest to stops or e scooters
@@ -85,19 +98,20 @@ for week in user_weekly_trips:
         subNodesList.append(list(G.nodes()))
 
         # write the timings in csv file for viewing
-        with open('/home/sai/PycharmProjects/BerlinRoutes/OutputsGurobi/' + week + '_timings_trip_' + str(tripNum) + '.csv', 'w') as csv_file:
-            writer = csv.writer(csv_file)
-            writer.writerow(["edges", "timings"])
-            for edgeAttr in edgeAttrs:
-                if edgeAttr[0] == tripNum:
-                    writer.writerow([str.encode(str(edgeAttr[1])), int(list(edgeAttrs[edgeAttr].values())[0])])
+        # with open(directory + week + '_timings_trip_' + str(
+        #         tripNum) + '.csv', 'w') as csv_file:
+        #     writer = csv.writer(csv_file)
+        #     writer.writerow(["edges", "timings"])
+        #     for edgeAttr in edgeAttrs:
+        #         if edgeAttr[0] == tripNum:
+        #             writer.writerow([str.encode(str(edgeAttr[1])), int(list(edgeAttrs[edgeAttr].values())[0])])
         plt.clf()
         tripNum += 1
 
     for nodes in subNodesList:
         nodes.remove('orig')
         nodes.remove('dest')
-        print(*nodes)
+        #print(*nodes)
 
     for edgeAttr in edgeAttrs:
         monValTime[edgeAttr[0], edgeAttr[1]] = int(list(edgeAttrs[edgeAttr].values())[0]) * valueTime
@@ -126,7 +140,8 @@ for week in user_weekly_trips:
             m.addConstr(quicksum(edgeOut[t, node]) <= 1, name='departConstr')
 
     # Weekly OverUsage Constraint
-    m.addConstr(quicksum(r[edgeAttr] * eScooterTime[edgeAttr] for edgeAttr in scootEdgeAttrs.keys()) <= eScooterLimit + WeeklyOverUsage)
+    m.addConstr(quicksum(
+        r[edgeAttr] * eScooterTime[edgeAttr] for edgeAttr in scootEdgeAttrs.keys()) <= eScooterLimit + WeeklyOverUsage)
 
     # Objective Function
     obj = quicksum(r[edgeAttr] * monValTime[edgeAttr] for edgeAttr in edgeAttrs.keys()) + \
@@ -139,11 +154,33 @@ for week in user_weekly_trips:
     for v in m.getVars():
         var_values[(str.encode(v.varName))] = v.x
 
-    print("var_values are  ", var_values.items())
+    #print("var_values are  ", var_values.items())
 
-    with open('/home/sai/PycharmProjects/BerlinRoutes/OutputsGurobi/' +'OptimumRouteWeek_' + str(week[-1:]) + '.csv', 'w') as csv_file:
+    with open(directory + 'ObjectiveValuesWeekly.csv', 'a') as csv_file:
         writer = csv.writer(csv_file)
-        writer.writerow(["variables", "values"])
+        writer.writerow([week, "Objective Function", obj.getValue()])
+        writer.writerow([week, "Package Cost", WeeklyPackageCost])
         for key, value in var_values.items():
-            if value != 0:
-                writer.writerow([key, value])
+            if "OverUsage" in str(key):
+                overUsage = value
+                writer.writerow([week, "Over-Usage Cost", EScooterCost * overUsage])
+        writer.writerow([week, "Monetary Time Value", obj.getValue() - WeeklyPackageCost - (EScooterCost * overUsage)])
+
+    i = 0
+    with open(directory + 'OptimumRouteWeekly.csv', 'a') as csv_file:
+        writer = csv.writer(csv_file)
+        tripForPrint += 1
+        for key, value in var_values.items():
+            routeNumber = ""
+            if key[6:7].isdigit():
+                if not key[7:8].isdigit():
+                    routeNumber = int(key[6:7])
+                else:
+                    routeNumber = int(key[6:7] + key[7:8])
+            else:
+                routeNumber = i
+            if i != routeNumber:
+                i += 1
+                tripForPrint += 1
+            writer.writerow([week, tripForPrint, key, value])
+
