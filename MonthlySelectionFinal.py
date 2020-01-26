@@ -6,12 +6,14 @@ from MobilitySystems import getData
 import matplotlib.pyplot as plt
 
 
-user_monthly_trips = getData.getUserMonthlyTripDetails()
-valueTime = 0.00322222222
+valueTime = 0.003231
+eScooterLimit = 3600
+EScooterCost = 0.0033
+MonthlyPackageCost = 96
 
-eScooterLimit = 4800
-EScooterCost = 0.03
-MonthlyPackageCost = 120
+directory = "/home/sai/PycharmProjects/BerlinRoutes/OutputsGurobi/Students/User1/"
+
+user_monthly_trips = getData.getUserMonthlyTripDetails()
 
 m = Model('MonthlyPackageRoutes')
 MonthlyOverUsage = m.addVar(vtype=GRB.INTEGER, name='MonthlyOverUsage')
@@ -81,7 +83,7 @@ for trip in user_monthly_trips:
 
     subNodesList.append(list(G.nodes()))
     # write the timings in csv file for viewing
-    with open('/home/sai/PycharmProjects/BerlinRoutes/OutputsGurobi/' + 'timings_trip_' + str(tripNum) + '.csv', 'w') as csv_file:
+    with open(directory + 'Timings/' + 'Timings_trip_' + str(tripNum) + '.csv', 'w') as csv_file:
         writer = csv.writer(csv_file)
         writer.writerow(["edges", "timings"])
         for edgeAttr in edgeAttrs:
@@ -137,9 +139,20 @@ for v in m.getVars():
 
 print("var_values are  ", var_values.items())
 
-with open('/home/sai/PycharmProjects/BerlinRoutes/OutputsGurobi/OptimumRouteMonth.csv', 'w') as csv_file:
+with open(directory + 'ObjectiveValueMonthly.csv', 'w') as csv_file:
     writer = csv.writer(csv_file)
-    writer.writerow(["variables", "values"])
+    writer.writerow(["Objective", "Values"])
+    writer.writerow(["Objective Function", obj.getValue()])
+    writer.writerow(["Package Cost", MonthlyPackageCost])
     for key, value in var_values.items():
-        if value != 0:
-            writer.writerow([key, value])
+        if "MonthlyOverUsage" in str(key):
+            overUsage = value
+            writer.writerow(["Over-Usage Cost", EScooterCost * overUsage])
+    writer.writerow(["Monetary Time Value", obj.getValue() - MonthlyPackageCost - (EScooterCost * overUsage)])
+
+
+with open(directory + 'OptimumSolutionMonthly.csv', 'w') as csv_file:
+    writer = csv.writer(csv_file)
+    writer.writerow(["Variables", "Values"])
+    for key, value in var_values.items():
+        writer.writerow([key, value])

@@ -138,24 +138,31 @@ def getUserMonthlyTripDetails():
         user_monthly_trips = []
         csv_reader = csv.reader(csv_file)
         header = next(csv_reader)
+
+        user_weekly_trips = {
+            "week1": [],
+            "week2": [],
+            "week3": [],
+            "week4": []
+        }
         for row in csv_reader:
             weeks = row[8:]
             i = 0
             for week in weeks:
                 if i == 0:
                     if int(week) == 1:
-                        user_monthly_trips.append((row[3], row[4]))
+                        user_weekly_trips["week1"].append((row[3], row[4]))
                 if i == 1:
                     if int(week) == 1:
-                        user_monthly_trips.append((row[3], row[4]))
+                        user_weekly_trips["week2"].append((row[3], row[4]))
                 if i == 2:
                     if int(week) == 1:
-                        user_monthly_trips.append((row[3], row[4]))
+                        user_weekly_trips["week3"].append((row[3], row[4]))
                 if i == 3:
                     if int(week) == 1:
-                        user_monthly_trips.append((row[3], row[4]))
+                        user_weekly_trips["week4"].append((row[3], row[4]))
                 i += 1
-    return user_monthly_trips
+    return user_weekly_trips["week1"] + user_weekly_trips["week2"] + user_weekly_trips["week3"] + user_weekly_trips["week4"]
 
 
 def getTimeFromStr(time_str):
