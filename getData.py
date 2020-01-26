@@ -1,3 +1,4 @@
+import csv
 import sqlite3
 from datetime import datetime
 import time
@@ -98,6 +99,37 @@ def getNWFromAgencyEdgeAttrs(agencies):
     nx.write_gpickle(G, "/home/sai/PycharmProjects/BerlinRoutes/OutputGraphs/networkBerlin.gpickle")
     plt.savefig("/home/sai/PycharmProjects/BerlinRoutes/OutputGraphs/publicTransport.pdf", bbox_inches='tight', format='pdf', dpi=1200)
     return True
+
+
+def getUserTripDetails():
+    with open('userData.csv') as csv_file:
+        csv_reader = csv.reader(csv_file)
+        user_weekly_trips = {
+            "week1": [],
+            "week2": [],
+            "week3": [],
+            "week4": []
+        }
+        header = next(csv_reader)
+        for row in csv_reader:
+            weeks = row[8:]
+            print(weeks)
+            i = 0
+            for week in weeks:
+                if i == 0:
+                    if int(week) == 1:
+                        user_weekly_trips["week1"].append((row[3], row[4]))
+                if i == 1:
+                    if int(week) == 1:
+                        user_weekly_trips["week2"].append((row[3], row[4]))
+                if i == 2:
+                    if int(week) == 1:
+                        user_weekly_trips["week3"].append((row[3], row[4]))
+                if i == 3:
+                    if int(week) == 1:
+                        user_weekly_trips["week4"].append((row[3], row[4]))
+                i += 1
+    return user_weekly_trips
 
 
 def getTimeFromStr(time_str):

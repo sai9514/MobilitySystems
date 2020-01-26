@@ -1,11 +1,10 @@
+import copy
 from operator import itemgetter
 import geopy.distance
 from MobilitySystems import getData
 from gurobipy import *
 import networkx as nx
 import csv
-
-m = Model('WeeklyPackageRoutes')
 
 agency = 1
 eScooterLimit = 1200
@@ -47,10 +46,10 @@ print(user_weekly_trips.items())
 # if graph is True:
 #     G = nx.read_gpickle("/home/sai/PycharmProjects/BerlinRoutes/OutputGraphs/networkBerlin.gpickle")
 
-G = nx.read_gpickle("/home/sai/PycharmProjects/BerlinRoutes/OutputGraphs/networkBerlin1.gpickle")
 
 for week in user_weekly_trips:  # each key is each week - includes all the trips in the week
     trips = user_weekly_trips[week]  # includes all the trips in this week
+    m = Model('WeeklyPackageRoutes')
     WeeklyOverUsage = m.addVar(vtype=GRB.INTEGER, name='WeeklyOverUsage')
     edgeAttrs = {}
     publicEdgeAttrs = {}
@@ -67,33 +66,35 @@ for week in user_weekly_trips:  # each key is each week - includes all the trips
     nodeList = []
     mainNodesList = []
     print("no. of trips: ", len(trips))
-
+    orig = []
+    dest = []
     for trip in trips:
+        G = nx.read_gpickle("/home/sai/PycharmProjects/BerlinRoutes/OutputGraphs/networkBerlin1.gpickle")
         tripEdgeAttrs = {}
         tripScooterEdgeAttrs = {}
-        orig = trip[0]
-        dest = trip[1]
+        orig.append(trip[0])
+        dest.append(trip[1])
         extraCoords = {}
         node_attrs = nx.get_node_attributes(G, name='locale')
 
         # creating links between orig, dest and public stops and e scooter stops
         for item in node_attrs.items():
-            d1 = geopy.distance.vincenty(orig, item[1]).km
-            d2 = geopy.distance.vincenty(dest, item[1]).km
+            d1 = geopy.distance.vincenty(orig[tripNum - 1], item[1]).km
+            d2 = geopy.distance.vincenty(dest[tripNum - 1], item[1]).km
             if "es_" not in item[0]:  # for public transport stops
                 if d1 < 1:
-                    G.add_edge("orig", item[0], key='walk', attrs={"walk": int(720 * d1)})
+                    G.add_edge("orig" + str(tripNum), item[0], key='walk', attrs={"walk": int(720 * d1)})
                 if d2 < 1:
-                    G.add_edge(item[0], "dest", key='walk', attrs={"walk": int(720 * d2)})
+                    G.add_edge(item[0], "dest" + str(tripNum), key='walk', attrs={"walk": int(720 * d2)})
             else:  # for e scooter stops
                 if d1 < 1:
-                    G.add_edge("orig", item[0], key='walk', attrs={"walk": int(720 * d1)})
+                    G.add_edge("orig" + str(tripNum), item[0], key='walk', attrs={"walk": int(720 * d1)})
                 if d2 < 5:
-                    G.add_edge(item[0], "dest", key='scoot', attrs={"scoot": int(180 * d2)})
+                    G.add_edge(item[0], "dest" + str(tripNum), key='scoot', attrs={"scoot": int(180 * d2)})
         print("No. of edges after orig, dest and e scooters: ", nx.number_of_edges(G))
         edgeList = G.edges.data('attrs')
         nodeList.append(list(G.nodes()))
-
+        print(*edgeList)
         # creating dictionaries with full edges and only public transport edges for different constraints
         for eachEdge in edgeList:
             edgeAttrs[tripNum, (eachEdge[0], eachEdge[1])] = eachEdge[2]
@@ -115,13 +116,23 @@ for week in user_weekly_trips:  # each key is each week - includes all the trips
             u = edges[1][0]
             v = edges[1][1]
             r[tripNum, edgeLink] = m.addVar(vtype=GRB.BINARY, name='r_' + str(tripNum) + str(edgeLink))
-            edgeIn[tripNum, v].append(r[tripNum, edgeLink])
-            edgeOut[tripNum, u].append(r[tripNum, edgeLink])
+            # print("tripNumber: ", tripNum, " u: ", u, " v: ", v)
+            if (tripNum, v) in edgeIn:
+                edgeIn[tripNum, v].append(r[tripNum, edgeLink])
+            else:
+                edgeIn[tripNum, v] = [r[tripNum, edgeLink]]
+            if (tripNum, u) in edgeOut:
+                edgeOut[tripNum, u].append(r[tripNum, edgeLink])
+            else:
+                edgeOut[tripNum, u] = [r[tripNum, edgeLink]]
 
-        nodeList[tripNum - 1].remove('orig')
-        nodeList[tripNum - 1].remove('dest')
+        mainNodesList.append(copy.copy(nodeList[tripNum - 1]))
+        print("no. of nodes in mainNOdes: ", len(mainNodesList[tripNum - 1]))
+        mainNodesList[tripNum - 1].remove('orig' + str(tripNum))
+        mainNodesList[tripNum - 1].remove('dest' + str(tripNum))
+        print("no. of nodes in mainNOdes after removing origin and dest: ", len(mainNodesList[tripNum - 1]))
 
-        mainNodesList.append(nodeList[tripNum - 1])
+        print("No. of edges after removing orig, dest ", nx.number_of_edges(G))
 
         for edgeAttr in edgeAttrs:
             monValTime[tripNum, edgeAttr[1]] = int(list(edgeAttrs[edgeAttr].values())[0]) * valueTime
@@ -131,11 +142,12 @@ for week in user_weekly_trips:  # each key is each week - includes all the trips
 
         with open(week + '_timings_trip_' + str(tripNum) + '.csv', 'w') as csv_file:
             writer = csv.writer(csv_file)
-            writer.writerow([("edges", "timings")])
+            writer.writerow(["edges", "timings"])
             for edgeAttr in edgeAttrs:
                 writer.writerow([str.encode(str(edgeAttr[1])), int(list(edgeAttrs[edgeAttr].values())[0])])
 
-        tripObj.append(quicksum(r[edgeAttr] * monValTime[edgeAttr] for edgeAttr in tripEdgeAttrs.keys()) + quicksum(
+        tripObj.append(
+            quicksum(r[edgeAttr] * monValTime[edgeAttr] for edgeAttr in tripEdgeAttrs.keys()) + quicksum(
             r[edgeAttr] * (eScooterUnlockCost[edgeAttr]) for edgeAttr in tripScooterEdgeAttrs.keys()))
 
         """
@@ -159,41 +171,61 @@ for week in user_weekly_trips:  # each key is each week - includes all the trips
         tripNum += 1
     print("value of tripNum ", tripNum)
 
-    # adding constraints
-    for t in range(0, tripNum - 1):
+    # adding constraints #orig
+    m.addConstrs(
+        (quicksum(edgeOut[t + 1, 'orig' + str(t + 1)]) - quicksum(edgeIn[t + 1, 'orig' + str(t + 1)]) == 1 for t in
+         range(0, tripNum - 1)),
+        name='originConst')
+    m.addConstrs(
+        (quicksum(edgeIn[t + 1, 'dest' + str(t + 1)]) - quicksum(edgeOut[t + 1, 'dest' + str(t + 1)]) == 1 for t in
+         range(0, tripNum - 1)),
+        name='destConst')
 
+    # m.addConstrs((quicksum(edgeIn[t + 1, node]) <= 1 for t in range(0, tripNum - 1) for node in nodeList[t]),
+    #              name='arrivalConstr')
+    #
+    # m.addConstrs((quicksum(edgeOut[t + 1, node]) <= 1 for t in range(0, tripNum - 1) for node in nodeList[t]),
+    #              name='departureConstr')
+    #
+    m.addConstrs((quicksum(edgeOut[t + 1, eachNode]) - quicksum(edgeIn[t + 1, eachNode]) == 0 for t in range(0, tripNum - 1) for eachNode in mainNodesList[t]), name='flowConstr')
+
+
+    # m.addConstrs((quicksum(edgeIn[t + 1, 'dest' + str(t + 1)]) - quicksum(edgeOut[t + 1, 'dest' + str(t + 1)]) == 1 for t in range(0, tripNum - 1)),
+    #     name='destConst')
+
+    for t in range(0, tripNum - 1):
         nodes = nodeList[t]
-        for node in nodes:
-            m.addConstr(quicksum(edgeIn[t+1, node]) <= 1, name='arrivalConstr')
-            m.addConstr(quicksum(edgeOut[t+1, node]) <= 1, name='departureConstr')
+        m.addConstrs((quicksum(edgeIn[t + 1, node]) <= 1 for node in nodes), name='arrivalConstr')
+        m.addConstrs((quicksum(edgeOut[t + 1, node]) <= 1 for node in nodes), name='departureConstr')
 
         mainNodes = mainNodesList[t]
-        for eachNode in mainNodes:
-            m.addConstr(quicksum(edgeOut[t+1, eachNode]) - quicksum(edgeIn[t+1, eachNode]) == 0, name='flowConstr')
-        m.addConstr(quicksum(edgeOut[t+1, 'orig']) - quicksum(edgeIn[t+1, 'orig']) == 1, name='originConst')
-        m.addConstr(quicksum(edgeIn[t+1, 'dest']) - quicksum(edgeOut[t+1, 'dest']) == 1, name='destConst')
+        m.addConstrs((quicksum(edgeOut[t + 1, eachNode]) - quicksum(edgeIn[t + 1, eachNode]) == 0 for eachNode in mainNodes), name='flowConstr')
+
+    # m.addConstr(quicksum(edgeOut[t + 1, 'orig' + str(t + 1)]) - quicksum(edgeIn[t + 1, 'orig' + str(t + 1)]) == 1,
+    #             name='originConst')
+    # m.addConstr(quicksum(edgeIn[t + 1, 'dest' + str(t + 1)]) - quicksum(edgeOut[t + 1, 'dest' + str(t + 1)]) == 1,
+    #             name='destConst')
 
     # OverUsage Constraint for E Scooter - should include sum over all trips in a week
+
     m.addConstr(quicksum(
         r[edgeAttr] * eScooterTime[edgeAttr] for edgeAttr in scootEdgeAttrs.keys()) <= eScooterLimit + WeeklyOverUsage)
 
     obj = quicksum(tripObj) + EScooterCost * WeeklyOverUsage + WeeklyPackageCost
 
-    obj = quicksum(tripObj) + WeeklyPackageCost
+    #obj = quicksum(tripObj) + WeeklyPackageCost
 
     # set Objective
     m.setObjective(obj, GRB.MINIMIZE)
-
     m.optimize()
     var_values = {}
-
     for v in m.getVars():
         var_values[(str.encode(v.varName))] = v.x
 
-    print(var_values.items())
+    print("var_values are  ", var_values.items())
 
     with open('OptimumRouteWeek_' + str(week[-1:]) + '.csv', 'w') as csv_file:
         writer = csv.writer(csv_file)
-        writer.writerow([("variables", "values")])
+        writer.writerow(["variables", "values"])
         for key, value in var_values.items():
             writer.writerow([key, value])
