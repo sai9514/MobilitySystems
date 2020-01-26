@@ -1,4 +1,3 @@
-import copy
 import geopy.distance
 from gurobipy import *
 import networkx as nx
@@ -7,7 +6,7 @@ from MobilitySystems import getData
 import matplotlib.pyplot as plt
 
 # getting weekly user trips
-user_weekly_trips = getData.getUserTripDetails()
+user_weekly_trips = getData.getUserWeeklyTripDetails()
 valueTime = 0.00322222222
 ulEscoot = 1
 eScooterLimit = 1200
@@ -36,9 +35,9 @@ for week in user_weekly_trips:
         dest = trip[1]
 
         # getting the network file with public transport and e scooters
-        G = nx.read_gpickle("/home/sai/PycharmProjects/BerlinRoutes/OutputGraphs/networkBerlin.gpickle")
-        nx.draw_networkx(G, with_labels=True, node_size=10, font_size=2, arrowsize=4)
-        plt.savefig("/home/sai/PycharmProjects/BerlinRoutes/OutputGraphs/sample_" + str(week) + "_" + str(tripNum) + ".pdf", bbox_inches='tight', format='pdf', dpi=1200)
+        G = nx.read_gpickle("/home/sai/PycharmProjects/BerlinRoutes/OutputGraphs/networkBerlin1.gpickle")
+        # nx.draw_networkx(G, with_labels=True, node_size=10, font_size=2, arrowsize=4)
+        # plt.savefig("/home/sai/PycharmProjects/BerlinRoutes/OutputGraphs/sample_" + str(week) + "_" + str(tripNum) + ".pdf", bbox_inches='tight', format='pdf', dpi=1200)
 
         node_attrs = nx.get_node_attributes(G, name='locale')
         print(*node_attrs)
@@ -146,4 +145,5 @@ for week in user_weekly_trips:
         writer = csv.writer(csv_file)
         writer.writerow(["variables", "values"])
         for key, value in var_values.items():
-            writer.writerow([key, value])
+            if value != 0:
+                writer.writerow([key, value])

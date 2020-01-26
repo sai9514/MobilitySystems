@@ -27,9 +27,9 @@ def getNWFromAgencyEdgeAttrs(agencies):
             cursor2 = conn.cursor()
             # getting the list of stops in a trip
             cursor2.execute(
-                    "select s2.stop_name, r1.route_short_name, s1.arrival_time, s1.departure_time, s2.stop_lat, s2.stop_lon from "
-                    "stop_times as s1, stops as s2, routes as r1, trips as t1  where s1.trip_id=? AND s1.stop_id = s2.stop_id AND "
-                    "s1.trip_id = t1.trip_id AND t1.route_id = r1.route_id", trip_row)
+                "select s2.stop_name, r1.route_short_name, s1.arrival_time, s1.departure_time, s2.stop_lat, s2.stop_lon from "
+                "stop_times as s1, stops as s2, routes as r1, trips as t1  where s1.trip_id=? AND s1.stop_id = s2.stop_id AND "
+                "s1.trip_id = t1.trip_id AND t1.route_id = r1.route_id", trip_row)
             node_rows = cursor2.fetchall()
 
             i = 1
@@ -97,11 +97,12 @@ def getNWFromAgencyEdgeAttrs(agencies):
     # print(edge_attrs.items())
     nx.draw_networkx(G, with_labels=True, node_size=10, font_size=2, arrowsize=4)
     nx.write_gpickle(G, "/home/sai/PycharmProjects/BerlinRoutes/OutputGraphs/networkBerlin.gpickle")
-    plt.savefig("/home/sai/PycharmProjects/BerlinRoutes/OutputGraphs/publicTransport.pdf", bbox_inches='tight', format='pdf', dpi=1200)
+    plt.savefig("/home/sai/PycharmProjects/BerlinRoutes/OutputGraphs/publicTransport.pdf", bbox_inches='tight',
+                format='pdf', dpi=1200)
     return True
 
 
-def getUserTripDetails():
+def getUserWeeklyTripDetails():
     with open('userData.csv') as csv_file:
         csv_reader = csv.reader(csv_file)
         user_weekly_trips = {
@@ -130,6 +131,31 @@ def getUserTripDetails():
                         user_weekly_trips["week4"].append((row[3], row[4]))
                 i += 1
     return user_weekly_trips
+
+
+def getUserMonthlyTripDetails():
+    with open('userData.csv') as csv_file:
+        user_monthly_trips = []
+        csv_reader = csv.reader(csv_file)
+        header = next(csv_reader)
+        for row in csv_reader:
+            weeks = row[8:]
+            i = 0
+            for week in weeks:
+                if i == 0:
+                    if int(week) == 1:
+                        user_monthly_trips.append((row[3], row[4]))
+                if i == 1:
+                    if int(week) == 1:
+                        user_monthly_trips.append((row[3], row[4]))
+                if i == 2:
+                    if int(week) == 1:
+                        user_monthly_trips.append((row[3], row[4]))
+                if i == 3:
+                    if int(week) == 1:
+                        user_monthly_trips.append((row[3], row[4]))
+                i += 1
+    return user_monthly_trips
 
 
 def getTimeFromStr(time_str):
@@ -223,4 +249,3 @@ def getNWFromAgencyNodeAttrs(agency):
     # nx.draw_networkx(G, with_labels=True, node_size=10, font_size=2, arrowsize=4)
     # plt.savefig("./sample2.pdf", bbox_inches='tight', format='pdf', dpi=1200)
     return G
-
