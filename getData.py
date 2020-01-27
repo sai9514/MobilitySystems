@@ -102,6 +102,16 @@ def getNWFromAgencyEdgeAttrs(agencies):
     return True
 
 
+def getUserPAYGTripsDetails():
+    with open('userDataPAYG.csv') as csv_file:
+        csv_reader = csv.reader(csv_file)
+        user_payg_trips = []
+        header = next(csv_reader)
+        for row in csv_reader:
+            user_payg_trips.append((row[3], row[4]))
+    return user_payg_trips
+
+
 def getUserWeeklyTripDetails():
     with open('userData.csv') as csv_file:
         csv_reader = csv.reader(csv_file)

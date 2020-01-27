@@ -16,19 +16,16 @@ publicTransFare = 3
 EscooterCost = 0.03
 ulEscoot = 1
 
-graph = getData.getNWFromAgencyEdgeAttrs(agency, orig, dest)
-
-if graph is True:
-    G = nx.read_gpickle("/home/sai/PycharmProjects/BerlinRoutes/OutputGraphs/networkBerlin.gpickle")
-
-edgeList = G.edges.data('attrs')
-
 nodeList = list(G.nodes())
 print(nodeList)
 
 edgeAttrs = {}
 publicEdgeAttrs = {}
 scootEdgeAttrs = {}
+
+
+G = nx.read_gpickle("/home/sai/PycharmProjects/BerlinRoutes/OutputGraphs/networkBerlinNew.gpickle")
+edgeList = G.edges.data('attrs')
 
 # creating dictionaries with full edges and only public transport edges for different constraints
 for eachEdge in edgeList:
@@ -60,7 +57,6 @@ for edgeLink in edgeAttrs:
 x = m.addVar(vtype=GRB.BINARY, name='publicTransUse')
 
 m.update()
-
 
 # adding constraints
 for node in nodeList:
