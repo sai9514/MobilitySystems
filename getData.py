@@ -97,13 +97,12 @@ def getNWFromAgencyEdgeAttrs(agencies):
     # print(edge_attrs.items())
     nx.draw_networkx(G, with_labels=True, node_size=10, font_size=2, arrowsize=4)
     nx.write_gpickle(G, "/home/sai/PycharmProjects/BerlinRoutes/OutputGraphs/networkBerlin.gpickle")
-    plt.savefig("/home/sai/PycharmProjects/BerlinRoutes/OutputGraphs/publicTransport.pdf", bbox_inches='tight',
-                format='pdf', dpi=1200)
+    plt.savefig("/home/sai/PycharmProjects/BerlinRoutes/OutputGraphs/publicTransport.pdf", bbox_inches='tight')
     return True
 
 
 def getUserPAYGTripsDetails():
-    with open('userDataPAYG.csv') as csv_file:
+    with open('UserData/userData_Student2.csv') as csv_file:
         csv_reader = csv.reader(csv_file)
         user_payg_trips = []
         header = next(csv_reader)
@@ -113,7 +112,7 @@ def getUserPAYGTripsDetails():
 
 
 def getUserWeeklyTripDetails():
-    with open('userData.csv') as csv_file:
+    with open('UserData/userData_Student2.csv') as csv_file:
         csv_reader = csv.reader(csv_file)
         user_weekly_trips = {
             "week1": [],
@@ -124,7 +123,6 @@ def getUserWeeklyTripDetails():
         header = next(csv_reader)
         for row in csv_reader:
             weeks = row[8:]
-            print(weeks)
             i = 0
             for week in weeks:
                 if i == 0:
@@ -172,7 +170,8 @@ def getUserMonthlyTripDetails():
                     if int(week) == 1:
                         user_weekly_trips["week4"].append((row[3], row[4]))
                 i += 1
-    return user_weekly_trips["week1"] + user_weekly_trips["week2"] + user_weekly_trips["week3"] + user_weekly_trips["week4"]
+    return user_weekly_trips["week1"] + user_weekly_trips["week2"] + user_weekly_trips["week3"] + user_weekly_trips[
+        "week4"]
 
 
 def getTimeFromStr(time_str):
