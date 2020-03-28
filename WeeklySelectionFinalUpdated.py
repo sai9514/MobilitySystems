@@ -12,7 +12,7 @@ EScooterCost = 0.0033
 WeeklyPackageCost = 21
 publicTransportCost = 2.9
 publicTransportLimit = 6
-waitingTimeValue = 600 * valueTime
+waitingTimeValue = 300 * 2 * valueTime
 
 directory = "/home/sai/PycharmProjects/BerlinRoutes/OutputsGurobi/Students/User2/"
 
@@ -155,7 +155,7 @@ for week in user_weekly_trips:
         subNodesList.append(list(G.nodes()))
 
         """
-        write the timings in csv file for viewing
+        write the timings in(1, 5): 1, csv file for viewing
         with open(directory + week + '_timings_trip_' + str(
                 tripNum) + '.csv', 'w') as csv_file:
             writer = csv.writer(csv_file)
@@ -235,7 +235,8 @@ for week in user_weekly_trips:
     obj = quicksum(r[edgeAttr] * monValTime[edgeAttr] for edgeAttr in edgeAttrs.keys()) + \
           quicksum(r[edgeAttr] * (eScooterUnlockCost[edgeAttr]) for edgeAttr in scootEdgeAttrs.keys()) + \
           quicksum(transfer.values()) * waitingTimeValue + \
-          EScooterCost * WeeklyOverUsage + WeeklyPackageCost
+          EScooterCost * WeeklyOverUsage + publicTransportCost * publicOverUsage + \
+          WeeklyPackageCost
 
     m.setObjective(obj, GRB.MINIMIZE)
     m.optimize()
