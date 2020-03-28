@@ -115,14 +115,14 @@ for trip in user_monthly_trips:
                 edgeOut[tripNum, u] = [r[edges]]
 
             # edge In and Out dictionaries along with their mode - used for transfer constraint
-            if (tripNum, v, edgeLink[1][2]) in edgeModeIn:
-                edgeModeIn[tripNum, v, edgeLink[1][2]].append(r[edges])
+            if (tripNum, v, edges[1][2]) in edgeModeIn:
+                edgeModeIn[tripNum, v, edges[1][2]].append(r[edges])
             else:
-                edgeModeIn[tripNum, v, edgeLink[1][2]] = [r[edges]]
-            if (tripNum, u, edgeLink[1][2]) in edgeModeOut:
-                edgeModeOut[tripNum, u, edgeLink[1][2]].append(r[edges])
+                edgeModeIn[tripNum, v, edges[1][2]] = [r[edges]]
+            if (tripNum, u, edges[1][2]) in edgeModeOut:
+                edgeModeOut[tripNum, u, edges[1][2]].append(r[edges])
             else:
-                edgeModeOut[tripNum, u, edgeLink[1][2]] = [r[edges]]
+                edgeModeOut[tripNum, u, edges[1][2]] = [r[edges]]
 
     # list of nodes in each trip
     subNodesList.append(list(G.nodes()))

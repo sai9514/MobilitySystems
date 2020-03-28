@@ -101,7 +101,7 @@ for week in user_weekly_trips:
                     G.add_edge("orig", item[0], key='walk', attrs={"walk": int(720 * d1)})
                 if d2 < 5:
                     G.add_edge(item[0], "dest", key='scoot', attrs={"scoot": int(180 * d2)})
-        print("Total No. of edges after connecting orig, dest and e scooters: ", nx.number_of_edges(G))
+        # print("Total No. of edges after connecting orig, dest and e scooters: ", nx.number_of_edges(G))
         edgeList = G.edges.data('attrs')
 
         # Creating separate dictionaries of public transport edges, Escooter edges and all edges
@@ -142,14 +142,14 @@ for week in user_weekly_trips:
                     edgeOut[tripNum, u] = [r[edges]]
 
                 # edge In and Out dictionaries along with their mode - used for transfer constraint
-                if (tripNum, v, edgeLink[1][2]) in edgeModeIn:
-                    edgeModeIn[tripNum, v, edgeLink[1][2]].append(r[edges])
+                if (tripNum, v, edges[1][2]) in edgeModeIn:
+                    edgeModeIn[tripNum, v, edges[1][2]].append(r[edges])
                 else:
-                    edgeModeIn[tripNum, v, edgeLink[1][2]] = [r[edges]]
-                if (tripNum, u, edgeLink[1][2]) in edgeModeOut:
-                    edgeModeOut[tripNum, u, edgeLink[1][2]].append(r[edges])
+                    edgeModeIn[tripNum, v, edges[1][2]] = [r[edges]]
+                if (tripNum, u, edges[1][2]) in edgeModeOut:
+                    edgeModeOut[tripNum, u, edges[1][2]].append(r[edges])
                 else:
-                    edgeModeOut[tripNum, u, edgeLink[1][2]] = [r[edges]]
+                    edgeModeOut[tripNum, u, edges[1][2]] = [r[edges]]
 
         # list of nodes in each trip
         subNodesList.append(list(G.nodes()))
@@ -218,7 +218,7 @@ for week in user_weekly_trips:
 
             # transfer constraint at each node for each mode for each trip
             for mode in publicModeList:
-                if (t, node, mode) in transfer:
+                if (t, node, mode) in transfer.keys():
                     m.addConstr(
                         quicksum(edgeModeOut[t, node, mode]) - quicksum(edgeModeIn[t, node, mode]) <= transfer[
                             t, node, mode],
