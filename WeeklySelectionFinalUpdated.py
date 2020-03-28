@@ -271,7 +271,8 @@ for week in user_weekly_trips:
             if "Usage" in str(key):
                 writer.writerow([week, tripForPrint, key, value])
             elif "transfer_" in str(key):
-                writer.writerow([week, tripForPrint, key, value])
+                if value != 0:
+                    writer.writerow([week, tripForPrint, key, value])
             else:
                 routeNumber = ""
                 if key[6:7].isdigit():
