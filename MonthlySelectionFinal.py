@@ -33,17 +33,11 @@ edgeOut = {}
 edgeModeIn = {}
 edgeModeOut = {}
 
+modeList = []
 subNodesList = []
 monValTime = {}
 eScooterTime = {}
 tripNum = 0
-
-# Get list of Public transport modes from list of public transport modes
-publicModeList = []
-with open('publicModeList.csv', 'r') as csv_file:
-    ff = csv.reader(csv_file)
-    for eachRow in ff:
-        publicModeList.append(eachRow[0])
 
 # iterating through the trips one by one
 for trip in user_monthly_trips:
@@ -51,6 +45,7 @@ for trip in user_monthly_trips:
     # getting origin and destination for each trip
     orig = trip[0]
     dest = trip[1]
+    modes = []
 
     # getting the network file with public transport and e scooters
     G = nx.read_gpickle("/home/sai/PycharmProjects/BerlinRoutes/OutputGraphs/networkBerlin1.gpickle")
@@ -93,14 +88,17 @@ for trip in user_monthly_trips:
     # looping through all edges one by one to create dict of "in" edges and "out" edges from a node
     # for the dicts edgeIn and edgeOut - key: (trip, nodes), value: list of edges entering/leaving the vertex
     # adding a binary variable for each link
+
     for edges in edgeAttrs:
         # condition to only create these dictionaries for the current trip (to avoid duplicates)
         if edges[0] == tripNum:
-            edgeLink = (edges[1][0], edges[1][1])
             u = edges[1][0]  # from node
             v = edges[1][1]  # to node
 
-            # route decision variable based on tripNum, and edges
+            if edges[1][2] not in modes:
+                modes.append(edges[1][2])
+
+            # route decision variable based on tripNum, edges, and mode
             r[edges] = m.addVar(vtype=GRB.BINARY, name='route_' + str(edges))
 
             if (tripNum, v) in edgeIn:
@@ -124,9 +122,14 @@ for trip in user_monthly_trips:
 
     # list of nodes in each trip
     subNodesList.append(list(G.nodes()))
+
+
     # creating transfer variable at each node for each mode for each trip
+    modes.remove('walk')
+    modes.remove('scoot')
+
     for node in subNodesList[tripNum]:
-        for mode in publicModeList:
+        for mode in modes:
             if (tripNum, node, mode) in edgeModeIn or (tripNum, node, mode) in edgeModeOut:
                 transfer[tripNum, node, mode] = m.addVar(vtype=GRB.BINARY,
                                                          name='transfer_' + str(tripNum) + str(node) + str(mode))
@@ -135,6 +138,7 @@ for trip in user_monthly_trips:
             if (tripNum, node, mode) not in edgeModeOut:
                 edgeModeOut[tripNum, node, mode] = [0]
 
+    modeList.append(modes)
     """
     # write the timings in csv file for viewing
     with open(directory + 'Timings/' + 'Timings_trip_' + str(tripNum) + '.csv', 'w') as csv_file:
@@ -153,9 +157,7 @@ for nodes in subNodesList:
     nodes.remove('dest')
 
 for edgeAttr in edgeAttrs:
-    print("edgeAttr: ", edgeAttr)
-    print("value: ", int(list(edgeAttrs[edgeAttr].values())[0]) * valueTime)
-    monValTime[edgeAttr] = int(list(edgeAttrs[edgeAttr].values())[0]) * valueTime
+    monValTime[edgeAttr] = max(int(list(edgeAttrs[edgeAttr].values())[0]) * valueTime, 0)
 
 for edgeAttr in scootEdgeAttrs:
     eScooterTime[edgeAttr] = (int(list(edgeAttrs[edgeAttr].values())[0]))
@@ -182,12 +184,11 @@ for t in range(0, tripNum):
         m.addConstr(quicksum(edgeOut[t, node]) <= 1, name='departConstr')
 
         # transfer constraint at each node for each mode for each trip
-        for mode in publicModeList:
+        for mode in modeList[t]:
             if (t, node, mode) in transfer:
                 m.addConstr(
-                    quicksum(edgeModeOut[t, node, mode]) - quicksum(edgeModeIn[t, node, mode]) <= transfer[
-                        t, node, mode],
-                    name='transferConstr')
+                    quicksum(edgeModeOut[t, node, mode]) - quicksum(edgeModeIn[t, node, mode]) <= transfer[t, node, mode],
+                             name='transferConstr')
 
 # Monthly OverUsage Constraint
 m.addConstr(quicksum(
@@ -195,8 +196,7 @@ m.addConstr(quicksum(
 
 # Objective Function
 obj = quicksum(r[edgeAttr] * monValTime[edgeAttr] for edgeAttr in edgeAttrs) + \
-      quicksum(transfer.values()) * waitingTimeValue + \
-      EScooterCost * MonthlyOverUsage + MonthlyPackageCost
+      (quicksum(transfer.values()) * waitingTimeValue) + (EScooterCost * MonthlyOverUsage) + MonthlyPackageCost
 
 m.setObjective(obj, GRB.MINIMIZE)
 m.optimize()
