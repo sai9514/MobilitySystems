@@ -75,8 +75,7 @@ for week in user_weekly_trips:
         dest = trip[1]
 
         # Decision variable to check if public transport was used in this trip
-        x[tripNum] = m.addVar(vtype=GRB.BINARY, name='publicUsage_trip_' + str(
-            tripNum))
+        x[tripNum] = m.addVar(vtype=GRB.BINARY, name='publicUsage_trip_' + str(tripNum))
 
         # getting the network file with public transport and e scooters
         G = nx.read_gpickle("/home/sai/PycharmProjects/BerlinRoutes/OutputGraphs/networkBerlin1.gpickle")
@@ -154,6 +153,17 @@ for week in user_weekly_trips:
         # list of nodes in each trip
         subNodesList.append(list(G.nodes()))
 
+        # add transfer binary variable for each node, each mode
+        for nodes in subNodesList[tripNum]:
+            for mode in publicModeList:
+                if (tripNum, nodes, mode) in edgeModeIn or (tripNum, nodes, mode) in edgeModeOut:
+                    transfer[tripNum, nodes, mode] = m.addVar(vtype=GRB.BINARY,
+                                                              name='transfer_' + str(tripNum) + str(nodes) + str(mode))
+                if (tripNum, nodes, mode) not in edgeModeIn:
+                    edgeModeIn[tripNum, nodes, mode] = [0]
+                if (tripNum, nodes, mode) not in edgeModeOut:
+                    edgeModeOut[tripNum, nodes, mode] = [0]
+
         """
         write the timings in(1, 5): 1, csv file for viewing
         with open(directory + week + '_timings_trip_' + str(
@@ -188,18 +198,6 @@ for week in user_weekly_trips:
         # destination constraint
         m.addConstr((quicksum(edgeIn[t, 'dest']) == 1), name='destConst')
 
-        # add transfer binary variable for each node, each mode
-        print("log for creating transfer decision variable")
-        for nodes in subNodesList[t]:
-            for mode in publicModeList:
-                if (t, nodes, mode) in edgeModeIn or (t, nodes, mode) in edgeModeOut:
-                    transfer[t, nodes, mode] = m.addVar(vtype=GRB.BINARY,
-                                                        name='transfer_' + str(t) + str(nodes) + str(mode))
-                if (t, nodes, mode) not in edgeModeIn:
-                    edgeModeIn[t, nodes, mode] = [0]
-                if (t, nodes, mode) not in edgeModeOut:
-                    edgeModeOut[t, nodes, mode] = [0]
-
         m.addConstr(quicksum(r[publicEdges] for publicEdges in publicEdgeAttrs if publicEdges[0] == t) >= 1000 * (
                 x[t] - 1))
         m.addConstr(
@@ -219,6 +217,7 @@ for week in user_weekly_trips:
             # transfer constraint at each node for each mode for each trip
             for mode in publicModeList:
                 if (t, node, mode) in transfer.keys():
+                    print("creating transfer costraint")
                     m.addConstr(
                         quicksum(edgeModeOut[t, node, mode]) - quicksum(edgeModeIn[t, node, mode]) <= transfer[
                             t, node, mode],
@@ -229,7 +228,7 @@ for week in user_weekly_trips:
         r[edgeAttr] * eScooterTime[edgeAttr] for edgeAttr in scootEdgeAttrs) <= eScooterLimit + WeeklyOverUsage)
 
     # Public Over Usage Constraint
-    m.addConstr(quicksum(x[i] for i in range(0, tripNum - 1)) <= publicTransportLimit + publicOverUsage)
+    m.addConstr(quicksum(x[i] for i in range(0, tripNum)) <= publicTransportLimit + publicOverUsage)
 
     # Objective FunctioneScooterTime
     obj = quicksum(r[edgeAttr] * monValTime[edgeAttr] for edgeAttr in edgeAttrs.keys()) + \
