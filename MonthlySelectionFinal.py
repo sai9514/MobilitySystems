@@ -5,13 +5,11 @@ import csv
 from MobilitySystems import getData
 import matplotlib.pyplot as plt
 
-
 valueTime = 0.003231
 eScooterLimit = 3600
 EScooterCost = 0.0033
 MonthlyPackageCost = 96
-waitingTimeValue = 600 * valueTime
-
+waitingTimeValue = 300 * 2 * valueTime
 
 directory = "/home/sai/PycharmProjects/BerlinRoutes/OutputsGurobi/Students/User1/"
 
@@ -55,7 +53,7 @@ for trip in user_monthly_trips:
     dest = trip[1]
 
     # getting the network file with public transport and e scooters
-    G = nx.read_gpickle("/home/sai/PycharmProjects/BerlinRoutes/OutputGraphs/networkBerlinNew.gpickle")
+    G = nx.read_gpickle("/home/sai/PycharmProjects/BerlinRoutes/OutputGraphs/networkBerlin1.gpickle")
 
     # nx.draw_networkx(G, with_labels=True, node_size=10, font_size=2, arrowsize=4) plt.savefig(
     # "/home/sai/PycharmProjects/BerlinRoutes/OutputGraphs/sample_" + str(week) + "_" + str(tripNum) + ".pdf",
@@ -68,12 +66,12 @@ for trip in user_monthly_trips:
         d1 = geopy.distance.vincenty(orig, item[1]).km
         d2 = geopy.distance.vincenty(dest, item[1]).km
         if "es_" not in item[0]:  # for public transport stops
-            if d1 < 4:
+            if d1 < 1:
                 G.add_edge("orig", item[0], key='walk', attrs={"walk": int(720 * d1)})
-            if d2 < 4:
+            if d2 < 1:
                 G.add_edge(item[0], "dest", key='walk', attrs={"walk": int(720 * d2)})
         else:  # for e scooter stops
-            if d1 < 4:
+            if d1 < 1:
                 G.add_edge("orig", item[0], key='walk', attrs={"walk": int(720 * d1)})
             if d2 < 5:
                 G.add_edge(item[0], "dest", key='scoot', attrs={"scoot": int(180 * d2)})
@@ -99,8 +97,8 @@ for trip in user_monthly_trips:
         # condition to only create these dictionaries for the current trip (to avoid duplicates)
         if edges[0] == tripNum:
             edgeLink = (edges[1][0], edges[1][1])
-            u = edges[1][0]     # from node
-            v = edges[1][1]     # to node
+            u = edges[1][0]  # from node
+            v = edges[1][1]  # to node
 
             # route decision variable based on tripNum, and edges
             r[edges] = m.addVar(vtype=GRB.BINARY, name='route_' + str(edges))
@@ -126,6 +124,16 @@ for trip in user_monthly_trips:
 
     # list of nodes in each trip
     subNodesList.append(list(G.nodes()))
+    # creating transfer variable at each node for each mode for each trip
+    for node in subNodesList[tripNum]:
+        for mode in publicModeList:
+            if (tripNum, node, mode) in edgeModeIn or (tripNum, node, mode) in edgeModeOut:
+                transfer[tripNum, node, mode] = m.addVar(vtype=GRB.BINARY,
+                                                         name='transfer_' + str(tripNum) + str(node) + str(mode))
+            if (tripNum, node, mode) not in edgeModeIn:
+                edgeModeIn[tripNum, node, mode] = [0]
+            if (tripNum, node, mode) not in edgeModeOut:
+                edgeModeOut[tripNum, node, mode] = [0]
 
     """
     # write the timings in csv file for viewing
@@ -145,6 +153,8 @@ for nodes in subNodesList:
     nodes.remove('dest')
 
 for edgeAttr in edgeAttrs:
+    print("edgeAttr: ", edgeAttr)
+    print("value: ", int(list(edgeAttrs[edgeAttr].values())[0]) * valueTime)
     monValTime[edgeAttr] = int(list(edgeAttrs[edgeAttr].values())[0]) * valueTime
 
 for edgeAttr in scootEdgeAttrs:
@@ -159,18 +169,6 @@ for t in range(0, tripNum):
 
     # destination constraint
     m.addConstr((quicksum(edgeIn[t, 'dest']) == 1), name='destConst')
-
-    # add transfer binary variable for each node, each mode
-    print("log for creating transfer decision variable")
-    for nodes in subNodesList[t]:
-        for mode in publicModeList:
-            if (t, nodes, mode) in edgeModeIn or (t, nodes, mode) in edgeModeOut:
-                transfer[t, nodes, mode] = m.addVar(vtype=GRB.BINARY,
-                                                    name='transfer_' + str(t) + str(nodes) + str(mode))
-            if (t, nodes, mode) not in edgeModeIn:
-                edgeModeIn[t, nodes, mode] = [0]
-            if (t, nodes, mode) not in edgeModeOut:
-                edgeModeOut[t, nodes, mode] = [0]
 
     for node in subNodesList[t]:
         # node = subNodes[i]
@@ -218,6 +216,10 @@ with open(directory + 'ObjectiveValueMonthly.csv', 'w') as csv_file:
         if "MonthlyOverUsage" in str(key):
             overUsage = value
             writer.writerow(["Over-Usage Cost", EScooterCost * overUsage])
+        elif "transfer_" in str(key):
+            transferValue = value
+            if transferValue != 0:
+                writer.writerow(["TransCost_" + str(key), value * 300 * 2 * valueTime])
     writer.writerow(["Monetary Time Value", obj.getValue() - MonthlyPackageCost - (EScooterCost * overUsage)])
 
 with open(directory + 'OptimumSolutionMonthly.csv', 'w') as csv_file:
