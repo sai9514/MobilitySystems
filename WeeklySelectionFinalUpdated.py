@@ -55,18 +55,13 @@ for week in user_weekly_trips:
     edgeOut = {}
     edgeModeIn = {}
     edgeModeOut = {}
+
+    modeList = []
     subNodesList = []
     monValTime = {}
     eScooterTime = {}
     eScooterUnlockCost = {}
     tripNum = 0
-
-    # Get list of Public transport modes from list of public transport modes
-    publicModeList = []
-    with open('publicModeList.csv', 'r') as csv_file:
-        ff = csv.reader(csv_file)
-        for eachRow in ff:
-            publicModeList.append(eachRow[0])
 
     # print(week)
     for trip in trips:
@@ -74,6 +69,7 @@ for week in user_weekly_trips:
         orig = trip[0]
         dest = trip[1]
 
+        modes = []
         # Decision variable to check if public transport was used in this trip
         x[tripNum] = m.addVar(vtype=GRB.BINARY, name='publicUsage_trip_' + str(tripNum))
 
@@ -91,12 +87,12 @@ for week in user_weekly_trips:
             d1 = geopy.distance.vincenty(orig, item[1]).km
             d2 = geopy.distance.vincenty(dest, item[1]).km
             if "es_" not in item[0]:  # for public transport stops
-                if d1 < 4:
+                if d1 < 1:
                     G.add_edge("orig", item[0], key='walk', attrs={"walk": int(720 * d1)})
-                if d2 < 4:
+                if d2 < 1:
                     G.add_edge(item[0], "dest", key='walk', attrs={"walk": int(720 * d2)})
             else:  # for e scooter stops
-                if d1 < 4:
+                if d1 < 1:
                     G.add_edge("orig", item[0], key='walk', attrs={"walk": int(720 * d1)})
                 if d2 < 5:
                     G.add_edge(item[0], "dest", key='scoot', attrs={"scoot": int(180 * d2)})
@@ -111,12 +107,10 @@ for week in user_weekly_trips:
                 if 'walk' != modeKey:
                     if 'scoot' != modeKey:
                         # Public transport edges for each trip
-                        publicEdgeAttrs[tripNum, (eachEdge[0], eachEdge[1], modeKey)] = eachEdge[
-                            2]
+                        publicEdgeAttrs[tripNum, (eachEdge[0], eachEdge[1], modeKey)] = eachEdge[2]
                     else:
                         # EScooter edges for each trip
-                        scootEdgeAttrs[tripNum, (eachEdge[0], eachEdge[1], modeKey)] = eachEdge[
-                            2]
+                        scootEdgeAttrs[tripNum, (eachEdge[0], eachEdge[1], modeKey)] = eachEdge[2]
 
                         # looping through all edges one by one to create dict of "in" edges and "out" edges from a node
         # for the dicts edgeIn and edgeOut - key: (trip, nodes), value: list of edges entering/leaving the vertex
@@ -124,9 +118,11 @@ for week in user_weekly_trips:
         for edges in edgeAttrs:
             # condition to only create these dictionaries for the current trip (to avoid duplicates)
             if edges[0] == tripNum:
-                edgeLink = (edges[1][0], edges[1][1])  # "from node" to "to node"
                 u = edges[1][0]  # from node
                 v = edges[1][1]  # to node
+
+                if edges[1][2] not in modes:
+                    modes.append(edges[1][2])
 
                 # route decision variable based on tripNum, and edges
                 r[edges] = m.addVar(vtype=GRB.BINARY, name='route_' + str(edges))
@@ -153,9 +149,12 @@ for week in user_weekly_trips:
         # list of nodes in each trip
         subNodesList.append(list(G.nodes()))
 
+        modes.remove('walk')
+        modes.remove('scoot')
+
         # add transfer binary variable for each node, each mode
         for nodes in subNodesList[tripNum]:
-            for mode in publicModeList:
+            for mode in modes:
                 if (tripNum, nodes, mode) in edgeModeIn or (tripNum, nodes, mode) in edgeModeOut:
                     transfer[tripNum, nodes, mode] = m.addVar(vtype=GRB.BINARY,
                                                               name='transfer_' + str(tripNum) + str(nodes) + str(mode))
@@ -163,6 +162,8 @@ for week in user_weekly_trips:
                     edgeModeIn[tripNum, nodes, mode] = [0]
                 if (tripNum, nodes, mode) not in edgeModeOut:
                     edgeModeOut[tripNum, nodes, mode] = [0]
+
+        modeList.append(modes)
 
         """
         write the timings in(1, 5): 1, csv file for viewing
@@ -204,7 +205,7 @@ for week in user_weekly_trips:
             quicksum(r[publicEdges] for publicEdges in publicEdgeAttrs if publicEdges[0] == t) <= 1000 * x[t])
 
         for node in subNodesList[t]:
-            # node = subNodes[i]
+            # node = subNodes[i]x
             # constraint to make sure each node is left if it is reached (flow constraint)
             m.addConstr(quicksum(edgeOut[t, node]) - quicksum(edgeIn[t, node]) == 0, name='flowConstr')
 
@@ -215,9 +216,8 @@ for week in user_weekly_trips:
             m.addConstr(quicksum(edgeOut[t, node]) <= 1, name='departConstr')
 
             # transfer constraint at each node for each mode for each trip
-            for mode in publicModeList:
-                if (t, node, mode) in transfer.keys():
-                    print("creating transfer costraint")
+            for mode in modeList[t]:
+                if (t, node, mode) in transfer:
                     m.addConstr(
                         quicksum(edgeModeOut[t, node, mode]) - quicksum(edgeModeIn[t, node, mode]) <= transfer[
                             t, node, mode],
